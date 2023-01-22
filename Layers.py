@@ -67,9 +67,13 @@ class Layer:
         loss = self()-answer
         return mul(loss, loss).sum()
     def descent(self, dJ_db: np.matrix, dJ_dw: np.matrix) -> Self:
+        """
+        dJ_db: (1, width)
+        dJ_dw: (prev_width, width)
+        """
         self.nodes[1, :] -= dJ_db
         self.weights -= dJ_dw
-        return self
+        return self.clear_answers()
 class InLayer(Layer):
     def __init__(self, nodes: np.matrix) -> None:
         """
