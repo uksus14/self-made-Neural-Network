@@ -1,6 +1,7 @@
 from Layers import InLayer, Layer
 from typing import Self
 import numpy as np
+from utils import mul
 class Network:
     def __init__(self, layers: list[Layer]|Layer):
         """
@@ -17,6 +18,7 @@ class Network:
         self.depth = len(layers)
         self.width = [layer.width for layer in layers]
         self.answer = None
+        self.derivs = [np.empty((1, self.layers[i])).astype(float) for i in range(1, self.depth-1)]
     @staticmethod
     def new(width: list[int], randomize: tuple[slice|None, slice|None] = (None, None)) -> Self:
         """
@@ -38,12 +40,27 @@ class Network:
     def set_input(self, ninput: np.matrix, normalize: bool = False) -> Self:
         """ninput: (1, width)"""
         self.layers[0].set_answers(ninput, normalize)
+        self.derivs[:] = np.nan
         return self
     def __call__(self) -> np.matrix:
         return self.layers[-1]()
-    def dJ_db(self, layer_i: int) -> np.matrix:
+    def deriv_between(self, left: int) -> np.matrix:
+        """
+        return: (1, left.width)
+        derivetive between two adjesent layers
+        """
+        left, right = self.layers[left], self.layers[left+1]
+        return np.dot(mul(right(), 1-right()), right.weights.T)
+    def deriv_from(self, left: int) -> np.matrix:
+        """
+        return: (1, left.width)
+        """
+    def deriv_bias(self, layer_i: int) -> np.matrix:
         """
         layer_i: index of layer which bias is deriviated
         return: (1, width_of_i)
         """
+        layer = self.layers[layer_i]
+        return mul(layer(), 1-layer())
+        self.derivs[:] = np.nan
         

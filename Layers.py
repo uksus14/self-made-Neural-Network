@@ -1,6 +1,6 @@
 from typing import Self
 import numpy as np
-from utils import sigmoid, mul
+from utils import sigmoid, mul, uni_default
 __network_debug__ = False
 class InLayer:pass
 __layers__ = []
@@ -18,31 +18,24 @@ class Layer:
         self.weights = weights.astype(float)
     @staticmethod
     def new(prev: Self|InLayer, width: int, rand_weights: slice|None = None, rand_biases: slice|None = None) -> Self:
-        rand1 = lambda:0
-        if rand_biases is not None:
-            rand1 = lambda:np.random.uniform(rand_biases.start, rand_biases.stop)
-        rand2 = lambda:1
-        if rand_weights is not None:
-            rand2 = lambda:np.random.uniform(rand_weights.start, rand_weights.stop)
-        nodes = [[None]*width, [rand1() for _ in range(width)]]
-        weights = [[rand2() for _ in range(width)] for _ in range(prev.width)]
-        return Layer(prev, np.matrix(nodes), np.matrix(weights))
+        nodes = np.empty((2, width))
+        rand = uni_default(rand_biases, 0)
+        nodes[1, :] = rand(nodes[1, :])
+        rand = uni_default(rand_weights, 1)
+        weights = rand(np.empty((prev.width, width)))
+        return Layer(prev, nodes, weights)
     def clear_answers(self) -> Self:
-        self.nodes[0, :] = np.matrix([None for _ in range(self.width)])
-        next = [layer for layer in __layers__ if layer.depth==self.depth+1]
+        self.nodes[0, :] = np.empty((1, self.width))
+        next = [layer for layer in __layers__ if layer.prev==self]
         if next: next[0].clear_answers()
         return self
     def clear(self) -> Self:
-        self.nodes[1, :] = np.matrix([0 for _ in range(self.width)])
+        self.nodes[1, :] = np.zeros((1, self.width))
         self.weights = np.ones((self.prev_width, self.width))
         return self.clear_answers()
     def __call__(self) -> np.matrix: # (1, width)
-        if __network_debug__:print(self.nodes[0, :])
         if np.any(np.isnan(self.nodes[0, :])):
             self.generate()
-        if __network_debug__:
-            print(self.nodes[0, :])
-            print()
         return self.nodes[0, :]
     def generate(self) -> Self:
         answers = np.dot(self.prev(), self.weights) #(1, width)
@@ -53,7 +46,7 @@ class Layer:
         """answers: (1, width)"""
         if normalize: answers = sigmoid(answers)
         self.nodes[0, :] = answers
-        next = [layer for layer in __layers__ if layer.depth==self.depth+1]
+        next = [layer for layer in __layers__ if layer.prev==self]
         if next: next[0].clear_answers()
         return self
     def create_answer(self, answer: int) -> np.matrix:
