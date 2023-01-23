@@ -17,8 +17,7 @@ def diag(m: np.matrix) -> np.matrix:
     m: (1, x)
     return: (x, x) with it's elements diagonalized
     """
-    y, x = m.shape
-    x = max(x, y)
+    x = max(m.shape)
     answer = np.empty((x, x))
     np.fill_diagonal(answer, m)
     return answer

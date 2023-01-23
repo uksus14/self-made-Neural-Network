@@ -19,31 +19,32 @@ class Layer:
     @staticmethod
     def new(prev: Self|InLayer, width: int, rand_weights: slice|None = None, rand_biases: slice|None = None) -> Self:
         nodes = np.empty((2, width))
+        nodes[:] = np.nan
         rand = uni_default(rand_biases, 0)
         nodes[1, :] = rand(nodes[1, :])
         rand = uni_default(rand_weights, 1)
         weights = rand(np.empty((prev.width, width)))
         return Layer(prev, nodes, weights)
     def clear_answers(self) -> Self:
-        self.nodes[0, :] = np.empty((1, self.width))
+        self.nodes[0, :] = np.nan
         next = [layer for layer in __layers__ if layer.prev==self]
         if next: next[0].clear_answers()
         return self
     def clear(self) -> Self:
-        self.nodes[1, :] = np.zeros((1, self.width))
+        self.nodes[1, :] = np.zeros((self.width,))
         self.weights = np.ones((self.prev_width, self.width))
         return self.clear_answers()
     def __call__(self) -> np.matrix: # (1, width)
-        if np.any(np.isnan(self.nodes[0, :])):
+        if np.isnan(self.nodes[0, :]).any():
             self.generate()
-        return self.nodes[0, :]
+        return self.nodes[0, :].reshape((1, self.width))
     def generate(self) -> Self:
         answers = np.dot(self.prev(), self.weights) #(1, width)
         activation = sigmoid(answers+self.nodes[1, :]) #(1, width)
         self.nodes[0, :] = activation
         return self
     def set_answers(self, answers: np.matrix, normalize: bool = False) -> Self:
-        """answers: (1, width)"""
+        """answers: (width,)"""
         if normalize: answers = sigmoid(answers)
         self.nodes[0, :] = answers
         next = [layer for layer in __layers__ if layer.prev==self]
@@ -52,10 +53,10 @@ class Layer:
     def create_answer(self, answer: int) -> np.matrix:
         """
         answer: index of right answer neuron
-        return: (1, width) like [0,0,...1...0,0]
+        return: (width,) like [0,0,...1...0,0]
         """
-        out = np.zeros((1, self.width))
-        out[0, answer] = 1
+        out = np.zeros((self.width,))
+        out[answer] = 1
         return out
     def cost(self, answer: int|np.matrix) -> float:
         """
@@ -66,13 +67,13 @@ class Layer:
             answer = self.create_answer(answer)
         loss = self()-answer
         return mul(loss, loss).sum()
-    def descent(self, dJ_db: np.matrix, dJ_dw: np.matrix) -> Self:
+    def descent(self, dJ_db: np.matrix, dJ_dw: np.matrix, alpha: float = 1e-5) -> Self:
         """
-        dJ_db: (1, width)
+        dJ_db: (width,)
         dJ_dw: (prev_width, width)
         """
-        self.nodes[1, :] -= dJ_db
-        self.weights -= dJ_dw
+        self.nodes[1, :] -= alpha*dJ_db
+        self.weights -= alpha*dJ_dw
         return self.clear_answers()
 class InLayer(Layer):
     def __init__(self, nodes: np.matrix) -> None:
